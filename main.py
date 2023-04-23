@@ -28,6 +28,7 @@ service = Service(chromedriver)
 os.environ["webdriver.chrome.driver"] = chromedriver
 
 options = webdriver.ChromeOptions()
+#options.add_argument("--proxy-server=socks5://localhost:1080")
 options.add_argument('--no-sandbox')  # 解决DevToolsActivePort文件不存在的报错
 options.add_argument('window-size=1920x1080')  # 指定浏览器分辨率
 options.add_argument('--disable-gpu')  # 谷歌文档提到需要加上这个属性来规避bug
@@ -50,7 +51,7 @@ delay = 10
 
 
 def create_error_file(html):
-    with open(mypath + "/error.html", "w", encoding='gb18030') as op:
+    with open(mypath + "/error.html", "w" , encoding='gb18030') as op:
         op.write(html)
         op.close()
 
@@ -98,10 +99,9 @@ def sendMsg(msg):
         return
     bot = telegram.Bot(token=token)
     bot.send_message(chat_id=chat_id, text=msg)
-
+    
+    
 # 更新网站上的密码
-
-
 def update_pwd(api_host, apple_id, passwd):
     if len(api_host) == 0:
         return
@@ -165,19 +165,6 @@ def check_appleid(account):
                 driver, "img").get_attribute("src")
             img = img.replace('data:image/jpeg;base64, ', '')
             code = ocr.classification(img)
-            # is_img_base64 = re.match(r'^data:image/jpeg;base64,(.*)', img)
-            # code = ""
-            # if is_img_base64:
-            #     try:
-            #         code = ocr.classification(is_img_base64.group(1))
-            #     except Exception as e:
-            #         print("非法的图片", e, is_img_base64.group(1))
-            #         msg = "不能识别的图片！可能图片加载失败！"
-            #         break
-            # else:
-            #     msg = "未找到图片验证码！"
-            #     break
-
             code_input = find_element_by_class(driver, 'captcha-input')
             code_input.send_keys(code)
             # 等待按钮可点击
@@ -202,13 +189,17 @@ def check_appleid(account):
                             print("验证码识别错误 (%s)，已尝试 %d 次，准备再试试..." %
                                   (apple_id, count))
                             count = count + 1
+                            time.sleep(1)
                             continue
                         else:
-                            msg = "验证码识别错误，已尝试 %d 次，再见！" % count
+                            msg = "验证码识别错误 (%s)，已尝试 %d 次，再见！" % (
+                                apple_id, count)
+                            print(msg)
+                    sendMsg("出错啦！" + msg)
                     account["status"] = 0
                 break
 
-        print(msg + "(%s)" % apple_id)
+        print(msg)
         # 重置密码
         if msg == "Select what information you want to reset.":
             if (not is_reset_pwd) or reset_pwd_interval < 100:
@@ -223,6 +214,7 @@ def check_appleid(account):
             find_enable_by_class(driver, "last").click()
 
             # 输入生日
+            time.sleep(10)
             find_enable_by_class(driver, "date-input").send_keys(dob)
             find_enable_by_class(driver, "last").click()
 
@@ -230,24 +222,25 @@ def check_appleid(account):
             questions = find_element_by_class_all(driver, "question")
             answers = find_element_by_class_all(driver, "security-answer")
             for i, q in enumerate(questions):
-                time.sleep(1)
                 answers[i].send_keys(qa[q.get_attribute("innerText")])
+                time.sleep(1)
             find_enable_by_class(driver, "last").click()
             # 设置密码 createPwd
             find_element_by_id(driver, "password")
             pwd_new = createPwd(12)
+            time.sleep(10)
             pwd_inputs = find_element_by_class_all(
                 driver, "form-textbox-input")
             for i, input in enumerate(pwd_inputs):
-                time.sleep(1)
                 input.send_keys(pwd_new)
+                time.sleep(1)
             find_enable_by_class(driver, "last").click()
 
             msg = apple_id + " 密码已重置为 %s " % pwd_new
             account["passwd"] = pwd_new
             account["last_reset_time"] = now
-            sendMsg(msg)
             update_pwd(api_host, apple_id, pwd_new)
+            sendMsg(msg)
             return True
         # 解锁
         elif msg == "Select how you want to unlock your account:":
@@ -265,77 +258,78 @@ def check_appleid(account):
             # 通过回答问题解锁
             oq[1].click()
             find_enable_by_class(driver, "last").click()
+            time.sleep(10)
             find_enable_by_class(driver, "date-input").send_keys(dob)
             find_enable_by_class(driver, "last").click()
             # 回答问题 等待两个文本框出现
             questions = find_element_by_class_all(driver, "question")
             answers = find_element_by_class_all(driver, "security-answer")
             for i, q in enumerate(questions):
-                time.sleep(1)
                 answers[i].send_keys(qa[q.get_attribute("innerText")])
+                time.sleep(1)
             find_enable_by_class(driver, "last").click()
-            # 确定已经进入下一步
-            find_enable_by_class(driver, "content-item")
-            subtitle = find_enable_by_class(driver, "subtitle")
-            if subtitle.get_attribute("innerText") == 'Ready to Unlock':
-                # 解锁并修改密码
-                find_element_by_class(driver, "pwdChange").click()
+            # 解锁并修改密码
+            #find_element_by_class(driver, "pwdChange").click()
             # 等待密码框出现
             find_element_by_id(driver, "password")
             pwd_new = createPwd(12)
+            time.sleep(10)
             pwd_inputs = find_element_by_class_all(
                 driver, "form-textbox-input")
             for i, input in enumerate(pwd_inputs):
-                time.sleep(1)
                 input.send_keys(pwd_new)
+                time.sleep(1)
             find_enable_by_class(driver, "last").click()
             find_element_by_class(driver, "done")
 
-            msg = apple_id + " 已解锁，密码重置为 %s " % pwd_new
+            msg = apple_id + " 已解锁，新密码 %s " % pwd_new
             account["passwd"] = pwd_new
             account["last_reset_time"] = now
-            sendMsg(msg)
             update_pwd(api_host, apple_id, pwd_new)
+            sendMsg(msg)
             return True
         # 双重认证
         elif msg == "Confirm your phone number.":
             print("正在关闭 %s 的双重认证..." % apple_id)
             find_element_by_class(driver, "button-caption-link").click()
             find_element_by_class_all(driver, "last")[1].click()
+            # driver.find_element(by=By.XPATH, value="/html/body/div[5]/div/div/recovery-unenroll-start/div/idms-step/div/div/div/div[3]/idms-toolbar/div/div/div/button[1]").click()
             # 输入生日
+            time.sleep(10)
             find_element_by_class(driver, "date-input").send_keys(dob)
             find_enable_by_class(driver, "last").click()
             # 回答问题
             questions = find_element_by_class_all(driver, "question")
+            time.sleep(10)
             answers = find_element_by_class_all(driver, "form-textbox-input")
             for i, q in enumerate(questions):
-                time.sleep(1)
                 answers[i].send_keys(qa[q.get_attribute("innerText")])
+                time.sleep(1)
             find_enable_by_class(driver, "last").click()
             time.sleep(1)
             find_enable_by_class(driver, "last").click()
             time.sleep(1)
             # 设置密码 createPwd
             pwd_new = createPwd(12)
+            time.sleep(10)
             pwd_inputs = find_element_by_class_all(
                 driver, "form-textbox-input")
             for i, input in enumerate(pwd_inputs):
-                time.sleep(1)
                 input.send_keys(pwd_new)
+                time.sleep(1)
             find_enable_by_class(driver, "last").click()
             find_element_by_class(driver, "idms-modal-content")
             time.sleep(1)
             find_element_by_class_all(driver, "last")[1].click()
 
-            msg = apple_id + " 双重认证已关闭，密码重置为 %s " % pwd_new
+            msg = apple_id + " 双重认证已关闭，新密码 %s " % pwd_new
             account["passwd"] = pwd_new
             account["last_reset_time"] = now
-            sendMsg(msg)
             update_pwd(api_host, apple_id, pwd_new)
+            sendMsg(msg)
             return True
         else:
             print("我无法理解")
-            sendMsg("出错啦！(%s) %s" % (apple_id, msg))
     except Exception as e:
         msg = '检查 %s 时，超时了。%s' % (apple_id, str(e))
         account["status"] = 0
@@ -348,7 +342,7 @@ def check_appleid(account):
 apple_data = []
 config = {}
 save = False
-with open(mypath + '/config.json', 'r', encoding='utf-8') as f:
+with open(mypath + '/config.json', 'r', encoding='utf-8-sig') as f:
     config = json.load(f)
 token = config.get('token')
 chat_id = config.get('chat_id')
