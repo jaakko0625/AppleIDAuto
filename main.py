@@ -119,7 +119,7 @@ def update_pwd(api_host, apple_id, passwd):
 def createPwd(passwordLength):
     pw = ''
     # * 2 增加数字和特殊字符出现的概率
-    str = string.digits * 2 + string.ascii_letters + '!@#$%^&*()_+=-' * 2
+    str = string.digits * 2 + string.ascii_letters + '!@#$%^*()_+=-' * 2
     while True:
         # 不包含重复字符的密码
         pw = ''.join(random.sample(str, k=passwordLength))
